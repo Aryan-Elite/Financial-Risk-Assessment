@@ -6,7 +6,7 @@ The **Financial Risk Assessment API** is designed to manage financial data uploa
 ## Tech Stack
 - **Backend**: Node.js, Express.js
 - **Database**: DynamoDB
-- **Messaging**: AWS SQS 
+- **Messaging**: AWS SQS
 - **Cache**: Redis
 - **Authentication**: JWT
 
@@ -124,7 +124,6 @@ POST /api/v1/finance/uploadFinancialData
     "cash_flow": 400000
   }
 ]
-
 ```
 
 #### **Get risk assessment**
