@@ -6,11 +6,11 @@ const sqs = new AWS.SQS();
 const DLQ_URL = process.env.SQS_DLQ_URL; // Dead Letter Queue URL
 
 if (!DLQ_URL) {
-    console.error("❌ ERROR: SQS_DLQ_URL is missing in .env file");
+    console.error("ERROR: SQS_DLQ_URL is missing in .env file");
     process.exit(1);
 }
 
-// ✅ Function to Check if Record Exists in DynamoDB
+// Function to Check if Record Exists in DynamoDB
 async function recordExists(company_id, reporting_period) {
     const params = {
         TableName: process.env.DYNAMODB_FINANCIAL_TABLE,
@@ -21,25 +21,25 @@ async function recordExists(company_id, reporting_period) {
     return result.Item ? true : false;
 }
 
-// ✅ Function to Process a Single Failed Record
+// Function to Process a Single Failed Record
 async function processFailedRecord(record, receiptHandle) {
     try {
-        // 🔍 **Check if record already exists before retrying**
+        // Check if record already exists before retrying
         const exists = await recordExists(record.company_id, record.reporting_period);
         if (exists) {
-            console.log(`⚠️ Skipping record (Already exists in DB): ${record.company_id} - ${record.reporting_period}`);
+            console.log(`Skipping record (Already exists in DB): ${record.company_id} - ${record.reporting_period}`);
 
-            // ✅ DELETE from DLQ because it already exists in DB
+            // DELETE from DLQ because it already exists in DB
             await sqs.deleteMessage({
                 QueueUrl: DLQ_URL,
                 ReceiptHandle: receiptHandle,
             }).promise();
-            console.log(`🗑️ Deleted duplicate record from DLQ: ${record.company_id} - ${record.reporting_period}`);
-            
+            console.log(`Deleted duplicate record from DLQ: ${record.company_id} - ${record.reporting_period}`);
+
             return true; // Mark as successful to remove from DLQ
         }
 
-        // ✅ Insert the record into DynamoDB
+        // Insert the record into DynamoDB
         const putParams = {
             TableName: process.env.DYNAMODB_FINANCIAL_TABLE,
             Item: {
@@ -51,26 +51,26 @@ async function processFailedRecord(record, receiptHandle) {
         };
 
         await dynamoDB.put(putParams).promise();
-        console.log(`✅ Successfully reprocessed failed record: ${record.company_id} - ${record.reporting_period}`);
+        console.log(`Successfully reprocessed failed record: ${record.company_id} - ${record.reporting_period}`);
 
-        // ✅ DELETE from DLQ after successful processing
+        // DELETE from DLQ after successful processing
         await sqs.deleteMessage({
             QueueUrl: DLQ_URL,
             ReceiptHandle: receiptHandle,
         }).promise();
-        console.log(`🗑️ Deleted successfully processed record from DLQ: ${record.company_id} - ${record.reporting_period}`);
-        
+        console.log(`Deleted successfully processed record from DLQ: ${record.company_id} - ${record.reporting_period}`);
+
         return true; // Successfully inserted
 
     } catch (error) {
-        console.error(`❌ Failed again: ${error.message}`);
+        console.error(`Failed again: ${error.message}`);
         return false; // Still failed
     }
 }
 
-// ✅ Poll the DLQ for Messages and Retry Processing
+// Poll the DLQ for Messages and Retry Processing
 async function pollDLQ() {
-    console.log("🔍 Starting DLQ Worker...");
+    console.log("Starting DLQ Worker...");
 
     const params = { QueueUrl: DLQ_URL, MaxNumberOfMessages: 10, WaitTimeSeconds: 5 };
 
@@ -84,19 +84,19 @@ async function pollDLQ() {
 
             for (const message of response.Messages) {
                 const record = JSON.parse(message.Body);
-                const receiptHandle = message.ReceiptHandle; // ✅ Store message handle
+                const receiptHandle = message.ReceiptHandle; // Store message handle
 
                 const success = await processFailedRecord(record, receiptHandle);
 
                 if (!success) {
-                    console.error(`⚠️ Record still failed. Keeping it in DLQ: ${record.company_id} - ${record.reporting_period}`);
+                    console.error(`Record still failed. Keeping it in DLQ: ${record.company_id} - ${record.reporting_period}`);
                 }
             }
         } catch (error) {
-            console.error("❌ Error processing DLQ messages:", error.message);
+            console.error("Error processing DLQ messages:", error.message);
         }
     }
 }
 
-// ✅ Start Polling DLQ in Background
+// Start Polling DLQ in Background
 pollDLQ();

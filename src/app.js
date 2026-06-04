@@ -28,7 +28,7 @@ app.use("/api/v1/finance", financialRouter);
 
 // Health Check Route
 app.get("/", (req, res) => {
-  res.send("🚀 Financial Risk API is running...");
+  res.send("Financial Risk API is running");
 });
 
 module.exports = app;

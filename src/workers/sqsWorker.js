@@ -8,16 +8,16 @@ const QUEUE_URL = process.env.SQS_QUEUE_URL;
 const DLQ_URL = process.env.SQS_DLQ_URL;
 
 if (!QUEUE_URL || !DLQ_URL) {
-    console.error("❌ ERROR: SQS_QUEUE_URL or SQS_DLQ_URL is missing in .env file");
+    console.error("ERROR: SQS_QUEUE_URL or SQS_DLQ_URL is missing in .env file");
     process.exit(1);
 }
 
-// ✅ Function to Process Financial Data from SQS and Insert into DynamoDB
+// Function to Process Financial Data from SQS and Insert into DynamoDB
 async function processFinancialData(records, batchId) {
     let successfulRecords = 0;
     let failedRecords = 0;
 
-    console.log(`📌 Processing batch: ${batchId}, Records: ${records.length}`);
+    console.log(`Processing batch: ${batchId}, Records: ${records.length}`);
 
     const transactItems = records.map(record => ({
         Put: {
@@ -35,9 +35,9 @@ async function processFinancialData(records, batchId) {
     try {
         await dynamoDB.transactWrite({ TransactItems: transactItems }).promise();
         successfulRecords = records.length;
-        console.log(`✅ Batch ${batchId} processed successfully!`);
+        console.log(`Batch ${batchId} processed successfully`);
     } catch (error) {
-        console.error(`❌ Transaction failed for batch ${batchId}:`, error.message);
+        console.error(`Transaction failed for batch ${batchId}:`, error.message);
         failedRecords = records.length;
 
         for (const record of records) {
@@ -48,14 +48,14 @@ async function processFinancialData(records, batchId) {
         }
     }
 
-    // ✅ Ensure batch exists before updating
+    // Ensure batch exists before updating
     const batchExists = await dynamoDB.get({
         TableName: process.env.DYNAMODB_BATCH_TABLE,
         Key: { batch_id: batchId }
     }).promise();
 
     if (batchExists.Item) {
-        // ✅ Update batch status in DynamoDB
+        // Update batch status in DynamoDB
         await dynamoDB.update({
             TableName: process.env.DYNAMODB_BATCH_TABLE,
             Key: { batch_id: batchId },
@@ -70,9 +70,9 @@ async function processFinancialData(records, batchId) {
     }
 }
 
-// ✅ Poll SQS Queue for Messages
+// Poll SQS Queue for Messages
 async function pollQueue() {
-    console.log("🔍 Starting SQS Worker...");
+    console.log("Starting SQS Worker...");
 
     const params = {
         QueueUrl: QUEUE_URL,
@@ -99,11 +99,9 @@ async function pollQueue() {
                 }).promise();
             }
         } catch (error) {
-            console.error("❌ Error processing SQS messages:", error.message);
+            console.error("Error processing SQS messages:", error.message);
         }
     }
 }
 
 pollQueue();
-
-

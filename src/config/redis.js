@@ -1,21 +1,16 @@
 const Redis = require("ioredis");
 
 const redis = new Redis({
-  host: '127.0.0.1', // Forces local Redis
+  host: '127.0.0.1',
   port: 6379
 });
 
-
-
-
 redis.on("connect", () => {
-    console.log("Connected to Redis Cloud!");
-    // console.log('Redis is connected to:', redis.options.host, 'on port:', redis.options.port);
-
+    console.log("Connected to Redis");
 });
 
 redis.on("error", (err) => {
-    console.error("❌ Redis Error:", err);
+    console.error("Redis error:", err);
 });
 
 module.exports = redis;

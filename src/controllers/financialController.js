@@ -11,11 +11,11 @@ exports.uploadFinancialData = async (req, res) => {
             return res.status(400).json({ message: "Invalid input. Expecting an array of records." });
         }
    console.log('Records in body are ',records);
-   
-        // ✅ Generate a unique batch ID
+
+        // Generate a unique batch ID
         const batchId = `batch-${Date.now()}`;
 
-        // ✅ Store batch metadata in DynamoDB
+        // Store batch metadata in DynamoDB
         const batchMetadata = {
             batch_id: batchId,
             total_records: records.length,
@@ -30,15 +30,15 @@ exports.uploadFinancialData = async (req, res) => {
             Item: batchMetadata
         }).promise();
 
-        // ✅ Attach batch_id to each record
+        // Attach batch_id to each record
         const enrichedRecords = records.map(record => ({
             ...record,
             batch_id: batchId
         }));
         console.log('enriched ',enrichedRecords);
-        
 
-        // ✅ Send records to SQS
+
+        // Send records to SQS
         await sqs.sendMessage({
             QueueUrl: process.env.SQS_QUEUE_URL,
             MessageBody: JSON.stringify(enrichedRecords),
@@ -92,7 +92,7 @@ exports.getRiskAssessment = async (req, res) => {
 
         let result;
 
-        // ✅ Case 1: Search by `company_id` (Primary Key)
+        // Case 1: Search by `company_id` (Primary Key)
         if (company_id) {
             params.KeyConditionExpression = "company_id = :company_id";
             params.ExpressionAttributeValues[":company_id"] = company_id;
@@ -105,15 +105,15 @@ exports.getRiskAssessment = async (req, res) => {
             result = await dynamoDB.query(params).promise();
         }
 
-        // ✅ Case 2: Search by `industry_sector` (Using GSI)
+        // Case 2: Search by `industry_sector` (Using GSI)
         else if (industry_sector && !reporting_period) {
-            params.IndexName = "IndustrySectorIndex";  // ✅ Ensure this matches the index name
+            params.IndexName = "IndustrySectorIndex";  // Ensure this matches the index name
             params.KeyConditionExpression = "industry_sector = :industry_sector";
-            params.ExpressionAttributeValues = { ":industry_sector": industry_sector };            
+            params.ExpressionAttributeValues = { ":industry_sector": industry_sector };
             result = await dynamoDB.query(params).promise();
         }
 
-        // ✅ Case 3: Search by `reporting_period` (Fallback to scan)
+        // Case 3: Search by `reporting_period` (Fallback to scan)
         else if (reporting_period && !industry_sector) {
             params.FilterExpression = "reporting_period = :reporting_period";
             params.ExpressionAttributeValues[":reporting_period"] = reporting_period;
@@ -121,9 +121,9 @@ exports.getRiskAssessment = async (req, res) => {
             result = await dynamoDB.scan(params).promise();
         }
 
-        // ✅ Case 4: Search by `reporting_period` AND `industry_sector`
+        // Case 4: Search by `reporting_period` AND `industry_sector`
         else if (industry_sector && reporting_period) {
-            params.IndexName = "IndustrySectorIndex";  // ✅ Use the GSI
+            params.IndexName = "IndustrySectorIndex";  // Use the GSI
             params.KeyConditionExpression = "industry_sector = :industry_sector";
             params.FilterExpression = "reporting_period = :reporting_period";
             params.ExpressionAttributeValues[":industry_sector"] = industry_sector;
@@ -136,23 +136,23 @@ exports.getRiskAssessment = async (req, res) => {
             return res.status(404).json({ message: "No records found." });
         }
 
-        console.log("📌 Records fetched from DB:", result.Items);
+        console.log("Records fetched from DB:", result.Items);
 
-        // ✅ Invoke Lambda for Risk Calculation
+        // Invoke Lambda for Risk Calculation
         const lambdaParams = {
             FunctionName: process.env.LAMBDA_RISK_FUNCTION,  // Lambda function name
             InvocationType: "RequestResponse",
-            Payload: JSON.stringify({ records: result.Items })  // ✅ Send records to Lambda
+            Payload: JSON.stringify({ records: result.Items })  // Send records to Lambda
         };
 
         const lambdaResponse = await lambda.invoke(lambdaParams).promise();
         const enrichedRecords = JSON.parse(lambdaResponse.Payload);
 
-        // ✅ Return Enriched Data
+        // Return Enriched Data
         return res.json({ message: "Risk assessment completed.", data: JSON.parse(enrichedRecords.body) });
 
     } catch (error) {
-        console.error("❌ Error fetching risk assessment:", error);
+        console.error("Error fetching risk assessment:", error);
         return res.status(500).json({ message: "Server error.", error: error.message });
     }
 };
