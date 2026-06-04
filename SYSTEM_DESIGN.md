@@ -17,7 +17,6 @@ A backend that ingests company financials in bulk and returns risk scores. Bulk 
 | `src/server.js` | Entry point. Loads `.env`, starts Express on `PORT`. |
 | `src/app.js` | Express setup: `helmet`, `express-rate-limit` (100 req/min/IP), JSON parser, route mounting at `/api/v1/*`. |
 | `src/config/db.js` | DynamoDB DocumentClient singleton. |
-| `src/config/redis.js` | ioredis client connecting to `127.0.0.1:6379`. Connected but not yet used for reads/writes. |
 | `src/controllers/authcontroller.js` | JWT auth middleware. Verifies token, attaches `user_id` to `req`. |
 | `src/controllers/userController.js` | Register / login / profile / logout. bcrypt password hashing, JWT issuance, lookup via `email-index` GSI. |
 | `src/controllers/financialController.js` | `uploadFinancialData` (POST), `getBatchStatus`, `getRiskAssessment` (GET — DynamoDB → Lambda). |
@@ -192,13 +191,6 @@ The pre-check exists because `transactWrite` is all-or-nothing — a single dupl
         │                            │
         │       JSON enriched rows   │
         └────────────────────────────┘
-
-   ┌─────────────────────────────────────────────┐
-   │ (PLANNED) Redis cache-aside on              │
-   │   /batch-status:                            │
-   │     GET batch:{id} → fallback DynamoDB      │
-   │     SET batch:{id} {json} EX 300            │
-   └─────────────────────────────────────────────┘
 ```
 
 ## Chronological flow
@@ -246,8 +238,6 @@ Controller unwraps the Lambda response (`JSON.parse(Payload).body` → `JSON.par
 
 Dependent fields are derived on read so the risk formula can change without a backfill.
 
-## Redis (planned)
+---
 
-- `config/redis.js` connects to a local Redis and is imported into the controller, but no `get`/`set`/`del` calls exist yet.
-- Planned first use: cache `BATCH` status on `/batch-status` (cache-aside, `SET batch:{id} {json} EX 300`, bump TTL to 1 hour on `status=Completed`).
-- Planned second use: cache Lambda risk-score results keyed by `company_id#reporting_period` with a long TTL, invalidated on re-upload.
+Redis is scaffolded in the codebase and intended as a future cache-aside layer in front of DynamoDB for the `/batch-status` and risk-score read paths.
